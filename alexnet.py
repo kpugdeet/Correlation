@@ -103,7 +103,7 @@ def alexnet(inputs, scope='alexnet'):
         # softmax(name='prob'))
         prob = tf.nn.softmax(fc8)
 
-        return maxpool5
+        return conv5
 
 if __name__ == "__main__":
     train_x = zeros((1, 227,227,3)).astype(float32)
