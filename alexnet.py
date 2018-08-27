@@ -36,7 +36,7 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w, padding="VALID", group=
         conv = tf.concat(output_groups, 3)  # tf.concat(3, output_groups)
     return tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:])
 
-def alexnet(inputs, scope='alexnet'):
+def alexnet(inputs, scope='alexnet', logits=False, convs=False):
     net_data = load(open("/media/dataHD3/kpugdeet/PRE/bvlc_alexnet.npy", "rb"), encoding="latin1").item()
     with tf.variable_scope(scope, 'alexnet', [inputs], reuse=None) as sc:
 
@@ -103,7 +103,11 @@ def alexnet(inputs, scope='alexnet'):
         # softmax(name='prob'))
         prob = tf.nn.softmax(fc8)
 
-        return conv1
+        if logits:
+            return prob, fc8
+        if convs:
+            return conv1
+        return prob
 
 if __name__ == "__main__":
     train_x = zeros((1, 227,227,3)).astype(float32)
