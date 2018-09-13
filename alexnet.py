@@ -106,7 +106,7 @@ def alexnet(inputs, scope='alexnet', logits=False, convs=False):
         if logits:
             return prob, fc8
         if convs:
-            return conv1
+            return conv5
         return prob
 
 if __name__ == "__main__":
