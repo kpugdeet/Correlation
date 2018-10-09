@@ -1,8 +1,8 @@
 import numpy as np
 
 # Load
-outputCNN = np.load('/media/dataHD3/kpugdeet/Correlation/data/outputCNN_conv5.npy')
-imageY = np.load('/media/dataHD3/kpugdeet/Correlation/data/imageY_conv5.npy')
+outputCNN = np.load('/media/dataHD3/kpugdeet/Correlation/data/outputCNN_maxpool5_monkey.npy')
+imageY = np.load('/media/dataHD3/kpugdeet/Correlation/data/imageY_maxpool5_monkey.npy')
 print(outputCNN.shape)
 print(imageY.shape)
 
@@ -12,4 +12,4 @@ bin_outputCNN = bin_outputCNN.astype(np.int32)
 unique, counts = np.unique(bin_outputCNN, return_counts=True)
 print (np.asarray((unique, counts)).T)
 print(bin_outputCNN.shape, bin_outputCNN.dtype)
-np.save('/media/dataHD3/kpugdeet/Correlation/data/bin_outputCNN_conv5.npy', bin_outputCNN)
+np.save('/media/dataHD3/kpugdeet/Correlation/data/bin_outputCNN_maxpool5_monkey.npy', bin_outputCNN)

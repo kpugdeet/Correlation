@@ -5,7 +5,7 @@ import multiprocessing as mp
 import time
 
 if __name__ == "__main__":
-    bin_outputCNN = np.load('/media/dataHD3/kpugdeet/Correlation/data/bin_outputCNN_conv5.npy')
+    bin_outputCNN = np.load('/media/dataHD3/kpugdeet/Correlation/data/bin_outputCNN_maxpool5_monkey.npy')
     print(bin_outputCNN.shape, bin_outputCNN.dtype)
 
     @cuda.jit
@@ -81,7 +81,7 @@ if __name__ == "__main__":
             klDict.update(eachDict)
         for p in processes:
             p.join()
-        pickle.dump(klDict, open('/media/dataHD3/kpugdeet/Correlation/data/klDict_conv5_count0_' + str(z) + '.pickle', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(klDict, open('/media/dataHD3/kpugdeet/Correlation/data/klDict_maxpool5_monkey_' + str(z) + '.pickle', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         elapsed_time = time.time() - start_time
         print(z, len(klDict), elapsed_time)
         print('')

@@ -127,10 +127,11 @@ if __name__ == "__main__":
     # Load Data
     mapClass, imageX, imageY = loadAPYData()
     print(len(mapClass), imageX.shape, imageY.shape)
+    imageX = imageX[imageY == 20]
+    imageY = imageY[imageY == 20]
+    print(imageX.shape, imageY.shape)
 
     x = tf.placeholder(tf.float32, name='inputImage', shape=[None, FLAGS.height, FLAGS.width, 3])
-    cnnProb = alexnet(x)
-
     x_fgm, x_noise = fgm(alexnet, x, epochs=1, eps=0.5, clip_min=0., clip_max=255.)
     convOutput = alexnet(x, convs=True)
 
@@ -140,103 +141,90 @@ if __name__ == "__main__":
     sess = tf.Session(config=tfConfig)
     sess.run(tf.global_variables_initializer())
 
-
-    # Select image and run Noise
-    selectImage = 14256
-    tmpImageData = imageX[selectImage].astype(np.float64)
-    advImg, randomNoise = sess.run([x_fgm, x_noise], feed_dict={x: np.expand_dims(tmpImageData, axis=0)})
+    # Run Attack image
+    advImg, randomNoise = sess.run([x_fgm, x_noise], feed_dict={x: imageX})
+    imageX = np.concatenate((imageX, advImg), axis=0)
+    print(imageX.shape)
 
     # Run prediction
-    testingData = np.concatenate((np.expand_dims(imageX[selectImage], axis=0), randomNoise, advImg), axis=0)
-    eachInputX = testingData
-    outputCNN = sess.run(cnnProb, feed_dict={x: eachInputX[:FLAGS.batchSize]})
-    for j in range(FLAGS.batchSize, eachInputX.shape[0], FLAGS.batchSize):
-        xBatch = eachInputX[j:j + FLAGS.batchSize]
-        outputCNN = np.concatenate((outputCNN, sess.run(cnnProb, feed_dict={x: xBatch})), axis=0)
-
-    answer = np.argmax(outputCNN, axis=1)
-    answer2 = np.max(outputCNN, axis=1)
-    if answer[0] != answer[2] and answer2[2] > 0.70:
-        print(mapClass[imageY[selectImage]], selectImage, outputCNN.shape)
-        print(answer)
-        print([class_names[p] for p in answer])
-        print(answer2)
-
-    # matplotlib.rcParams.update({'font.size': 5})
-    # plt.subplot(311)
-    # plt.imshow(imageX[selectImage].astype('uint8'))
-    # plt.axis('off')
-    # plt.title('{0}\n{1:.4f}'.format(class_names[answer[0]],answer2[0]))
-    #
-    # plt.subplot(312)
-    # plt.imshow(randomNoise[0].astype('uint8'))
-    # plt.axis('off')
-    # plt.title('{0}\n{1:.4f}'.format(class_names[answer[1]], answer2[1]))
-    #
-    # plt.subplot(313)
-    # plt.imshow(advImg[0].astype('uint8'))
-    # plt.axis('off')
-    # plt.title('{0}\n{1:.4f}'.format(class_names[answer[2]], answer2[2]))
-    #
-    # plt.subplots_adjust(hspace=0.5)
-    # plt.savefig('tmp.png', bbox_inches='tight')
-    # plt.clf()s
-
-    outputConv = sess.run(convOutput, feed_dict={x: testingData})
-    print(outputConv.shape)
-    # for h in range(outputConv.shape[0]):
-    #     outputPlot = np.repeat(np.expand_dims(outputConv[h], axis=0), 3, axis=0)
-    #     grid = visualize_grid(np.transpose(outputPlot, (3, 1, 2, 0)))
-    #     plt.imshow(grid.astype('uint8'))
-    #     plt.axis('off')
-    #     plt.gcf().set_size_inches(5, 5)
-    #     plt.savefig('CONV_rslt'+str(h)+'.png', bbox_inches='tight')
-    #     plt.clf()
+    outputCNN = sess.run(convOutput, feed_dict={x: imageX[:FLAGS.batchSize]})
+    for j in range(FLAGS.batchSize, imageX.shape[0], FLAGS.batchSize):
+        xBatch = imageX[j:j + FLAGS.batchSize]
+        outputCNN = np.concatenate((outputCNN, sess.run(convOutput, feed_dict={x: xBatch})), axis=0)
+    print(outputCNN.shape)
 
     bins = np.array([0, 1.0, 5.0, 10.0, 25.0, 50.0, 100.0])
-    ocb = np.digitize(outputConv, bins, right=True)
+    ocb = np.digitize(outputCNN, bins, right=True)
     ocb = ocb.astype(np.int32)
 
-    z = 0
-    for z in range(256):
-        klDict0 = pickle.load(open('/media/dataHD3/kpugdeet/Correlation/data/klDict_maxpool5_monkey_' + str(z) + '.pickle', 'rb'), encoding='bytes')
-        tmpArray = np.ascontiguousarray(ocb[:, :, :, z].reshape(ocb.shape[0], -1), dtype=np.int32)
+    tmpArray = np.ascontiguousarray(ocb[:, :, :, 0].reshape(ocb.shape[0], -1), dtype=np.int32)
+    print(tmpArray.shape)
 
-        for choose in range(tmpArray.shape[0]):
-            count = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-            countValue = 0
-            for ti in range(tmpArray.shape[1]):
-                if tmpArray[choose][ti] != -1:
-                    countValue += 1
-                    ansActivation = np.array([0, 0, 0, 0, 0, 0, 0, 0 ,0], dtype=np.float64)
-                    for ai in range(ansActivation.shape[0]):
-                        for fi in range(tmpArray.shape[1]):
-                            keyIndex = fi + ti * tmpArray.shape[1] + tmpArray[choose][fi] * tmpArray.shape[1] * 9 + ai * tmpArray.shape[1] * 9 * 9
-                            try:
-                                ansActivation[ai] += klDict0[keyIndex]
-                            except KeyError:
-                                continue
-                    elBest = max(ansActivation)
-                    elT = ansActivation[tmpArray[choose][ti]]
-                    anomaly = (elBest-elT)/elBest
-                    if anomaly > 0.9:
-                        count[0] += 1
-                    elif anomaly > 0.8:
-                        count[1] += 1
-                    elif anomaly > 0.7:
-                        count[2] += 1
-                    elif anomaly > 0.6:
-                        count[3] += 1
-                    elif anomaly > 0.5:
-                        count[4] += 1
-                    elif anomaly > 0.4:
-                        count[5] += 1
-                    elif anomaly > 0.3:
-                        count[6] += 1
-                    elif anomaly > 0.2:
-                        count[7] += 1
-                    elif anomaly > 0.1:
-                        count[8] += 1
-            print(countValue, count)
-            # print(ansActivation)
-        print('')
+    # Tensorboard
+    from tensorflow.contrib.tensorboard.plugins import projector
+    sess_1 = tf.Session(config=tfConfig)
+    if tf.gfile.Exists(FLAGS.BASEDIR + 'projector0'):
+        tf.gfile.DeleteRecursively(FLAGS.BASEDIR + 'projector0')
+        tf.gfile.MkDir(FLAGS.BASEDIR + 'projector0')
+    tf.gfile.MakeDirs(FLAGS.BASEDIR + 'projector0')
+    with open(FLAGS.BASEDIR + 'projector0/metadata.tsv', 'w') as f:
+        for i in range(int(tmpArray.shape[0]/2)):
+            f.write('{}\n'.format('0'))
+        for i in range(int(tmpArray.shape[0]/2)):
+            f.write('{}\n'.format('1'))
+    with tf.device("/cpu:0"):
+        embedding = tf.Variable(tf.stack(tmpArray[:tmpArray.shape[0]], axis=0), trainable=False, name='embedding')
+
+    sess_1.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
+    writer = tf.summary.FileWriter(FLAGS.BASEDIR + 'projector0', sess_1.graph)
+    config = projector.ProjectorConfig()
+    embed = config.embeddings.add()
+    embed.tensor_name = 'embedding:0'
+    embed.metadata_path = os.path.join(FLAGS.BASEDIR + 'projector0/metadata.tsv')
+    projector.visualize_embeddings(writer, config)
+    saver.save(sess_1, os.path.join(FLAGS.BASEDIR, 'projector0/a_model.ckpt'), global_step=tmpArray.shape[0])
+
+
+
+    # for z in range(256):
+    #     klDict0 = pickle.load(open('/media/dataHD3/kpugdeet/Correlation/data/klDict_conv5__monkey_' + str(z) + '.pickle', 'rb'), encoding='bytes')
+    #     tmpArray = np.ascontiguousarray(ocb[:, :, :, z].reshape(ocb.shape[0], -1), dtype=np.int32)
+    #
+    #     for choose in range(tmpArray.shape[0]):
+    #         count = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #         countValue = 0
+    #         for ti in range(tmpArray.shape[1]):
+    #             if tmpArray[choose][ti] != -1:
+    #                 countValue += 1
+    #                 ansActivation = np.array([0, 0, 0, 0, 0, 0, 0, 0 ,0], dtype=np.float64)
+    #                 for ai in range(ansActivation.shape[0]):
+    #                     for fi in range(tmpArray.shape[1]):
+    #                         keyIndex = fi + ti * tmpArray.shape[1] + tmpArray[choose][fi] * tmpArray.shape[1] * 9 + ai * tmpArray.shape[1] * 9 * 9
+    #                         try:
+    #                             ansActivation[ai] += klDict0[keyIndex]
+    #                         except KeyError:
+    #                             continue
+    #                 elBest = max(ansActivation)
+    #                 elT = ansActivation[tmpArray[choose][ti]]
+    #                 anomaly = (elBest-elT)/elBest
+    #                 if anomaly > 0.9:
+    #                     count[0] += 1
+    #                 elif anomaly > 0.8:
+    #                     count[1] += 1
+    #                 elif anomaly > 0.7:
+    #                     count[2] += 1
+    #                 elif anomaly > 0.6:
+    #                     count[3] += 1
+    #                 elif anomaly > 0.5:
+    #                     count[4] += 1
+    #                 elif anomaly > 0.4:
+    #                     count[5] += 1
+    #                 elif anomaly > 0.3:
+    #                     count[6] += 1
+    #                 elif anomaly > 0.2:
+    #                     count[7] += 1
+    #                 elif anomaly > 0.1:
+    #                     count[8] += 1
+    #         print(countValue, count)
+    #     print('')

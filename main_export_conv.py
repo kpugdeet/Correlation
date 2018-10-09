@@ -39,6 +39,10 @@ if __name__ == "__main__":
     # Load Data
     mapClass, imageX, imageY = loadAPYData()
     print(len(mapClass), imageX.shape, imageY.shape)
+    print(mapClass)
+    imageX = imageX[imageY == 20]
+    imageY = imageY[imageY == 20]
+    print(imageX.shape, imageY.shape)
 
     x = tf.placeholder(tf.float32, name='inputImage', shape=[None, FLAGS.height, FLAGS.width, 3])
     cnnFeature = alexnet(x, convs=True)
@@ -55,8 +59,8 @@ if __name__ == "__main__":
         xBatch = imageX[j:j + FLAGS.batchSize]
         outputCNN = np.concatenate((outputCNN, sess.run(cnnFeature, feed_dict={x: xBatch})), axis=0)
 
-    np.save(FLAGS.BASEDIR + 'data/outputCNN_conv5.npy', outputCNN)
-    np.save(FLAGS.BASEDIR + 'data/imageY_conv5.npy', imageY)
+    np.save(FLAGS.BASEDIR + 'data/outputCNN_maxpool5_monkey.npy', outputCNN)
+    np.save(FLAGS.BASEDIR + 'data/imageY_maxpool5_monkey.npy', imageY)
 
     # # Load
     # outputCNN = np.load(FLAGS.BASEDIR + 'data/outputCNN_conv5.npy')
